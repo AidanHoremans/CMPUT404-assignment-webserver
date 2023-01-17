@@ -33,28 +33,6 @@ import cgi
 
 
 
-class MyWebServer(socketserver.BaseRequestHandler):
-    
-    def handle(self):
-        self.data = self.request.recv(1024).strip()
-        print ("\nGot a request of: %s\n" % self.data)
-        print ("Client connected from: " + str(self.request))
-
-        if self.data == bytearray("", 'utf-8'):
-            return #ignore empty requests
-
-        request = self.data.splitlines()
-
-        if not request or request[0] == '':
-            self.request.sendall(bytearray("HTTP/1.1 400 bad request\r\n",'utf-8'))
-
-        #if header is not of type GET, return invalid request 405
-
-        requestType = request[0].split()
-
-        #take requestType, determine a few things
-        #the request type, only GET is valid for this program
-
         # FIRST things, need to make sure the client can accept text/html
 
         # if path ends with /, see if that path exists. if it does, use index.html
@@ -65,53 +43,133 @@ class MyWebServer(socketserver.BaseRequestHandler):
                 # if it does, then redirect the client with 301 to the index.html at the path with /
                 # if not, return 404
 
-        for i in requestType:
-            print(str(i))
+class MyWebServer(socketserver.BaseRequestHandler):
+    
+    def handle(self):
+        self.data = self.request.recv(1024).strip()
+        print ("\nGot a request of: %s\n" % self.data)
+        print ("Client connected from: " + str(self.request))
+
+        if self.data == bytearray("", 'utf-8'):
+            return #ignore empty requests
+
+        request = HTTPRequest(self.data)
 
         #garbage to remove, just for testing
-        print("Request type: " + str(requestType[0]))
-        print("Request path: " + str(requestType[1]))
-        print("Request version: " + str(requestType[2]))
+        print("Request method: " + str(request.method)) #str(requestType[0]))
+        print("Request path: " + str(request.path))#str(requestType[1]))
+        print("Request version: " + str(request.httpVersion))#str(requestType[2]))
 
-        if requestType[0] == bytearray("GET", 'utf-8'):
-            print("detected GET request")
+        request.printHeaders()
 
-        path = "www" + requestType[1].decode('utf-8')
-
-        if os.path.exists(path):
-            #self.request.sendall(bytearray("HTTP/1.1 200 ok\r\nContent-type: text/html\r\n\r\n<TITLE>CGI script output</TITLE> <h1>This is a Heading</h1>",'utf-8'))
-            httpResponse = bytearray("HTTP/1.1 200 ok\r\nContent-type: text/html\r\n\r\n",'utf-8') + self.servePage(path)
-            print("Sending server -> client response:\n\r" + str(httpResponse))
-            self.request.sendall(httpResponse)
+        if request.method == bytearray("GET", 'utf-8'):
+            print("GET request:")
+            response = HTTPResponse(path=request.path.decode('utf-8'))
+            construct = response.constructResponse()
+            print(construct)
+            self.request.sendall(bytes(construct, 'utf-8'))
             return
 
-        self.request.sendall(bytearray("HTTP/1.1 404 not found", 'utf-8'))
+        print("invalid request")
+        self.request.sendall(HTTPResponse(HTTPStatus.METHODNOTALLOWED).constructResponse())
+        #self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed", 'utf-8'))
+        return
 
-    def servePage(self, path):
-        return bytearray(open(path + "index.html", 'r').read(), 'utf-8')
+class HTTPStatus(Enum):
+    OK = 200, "Ok"
+    MOVEDPERMANENTLY = 301, "Moved Permanently"
+    BADREQUEST = 400, "Bad Request"
+    NOTFOUND = 404, "Not Found"
+    METHODNOTALLOWED = 405, "Method Not Allowed"
+    INTERNALSERVERERROR = 500, "Internal Server Error" #likely never used
 
-class HTTPRequest():
-    def __init__(self):
-        return self
+    def statusToBytes(self):
+        return str(self.value[0]) + " " + self.value[1]
 
 class HTTPResponse():
-
-    class HTTPStatus(Enum):
-        OK = 200, "ok"
-        BADREQUEST = 400, "bad request"
-        NOTFOUND = 404, "not found"
-        INTERNALSERVERERROR = 500, "internal server error" #likely never used
-
-    def __init__(self, request: HTTPRequest):
+    def __init__(self, path, status: HTTPStatus = HTTPStatus.OK):
         self.httpVersion = "HTTP/1.1"
-        self.status = self.determineStatus(request)
+        self.status = status
+        self.headers = dict()
+        self.payload = ""
+        if path != "":
+            self.findPath(path)
+
+    #if path exists, and we don't have the correct path ending, redirect to that path /this -> /this/
+    def findPath(self, path: str):
+        wwwPath = "www" + path
+        if os.path.isdir(wwwPath):
+            if wwwPath[-1] != "/": #redirect
+                self.status = HTTPStatus.MOVEDPERMANENTLY
+                print(path)
+                self.headers["Location"] = "http://" + str(HOST) + ":" + str(PORT) + str(path) + "/"
+            else: #otherwise just fetch index.html
+                self.status = HTTPStatus.OK
+                self.payload = open(wwwPath + "index.html", 'r').read()
+        else: #check if the file itself exists, otherwise fail
+            if os.path.isfile(wwwPath):
+                self.status = HTTPStatus.OK
+                self.payload = open(wwwPath, 'r').read()
+            else:
+                self.status = HTTPStatus.NOTFOUND
         return
 
-    def determineStatus(self, request: HTTPRequest):
-        
-        return
-    
+    def constructResponse(self):
+        response = ""
+        response = response + self.httpVersion + " " + self.status.statusToBytes()
+        for key, item in self.headers.items():
+            print("KEY" + key)
+            print(item)
+            response = response + "\r\n" + str(key) + ": " + str(item)
 
+        if self.payload != "":
+            response = response + "\r\n\r\n" + self.payload
+
+        return response
+
+
+class HTTPRequest():
+    def __init__(self, request: bytes):
+        # parse request type out of what was sent from the client
+        requestLines = request.splitlines()
+        requestType = requestLines[0].split()
+
+        self.method = requestType[0]
+        self.path = requestType[1]
+        self.httpVersion = requestType[2]
+
+        requestLines.pop(0) #since we already parsed the first element
+
+        self.payload = self.parsePayload(requestLines)
+        self.headers = self.parseHeaders(requestLines) #by this point, we have removed the payload and the first part of the request, leaving only headers
+
+        #return self
+
+    def parsePayload(self, requestLines: list[bytes]):
+        payload = bytes("", 'utf-8')
+
+        if len(requestLines) >= 2 and requestLines[-2] == bytes("", 'utf-8'):
+            payload = requestLines[-1]
+            requestLines.pop()
+            requestLines.pop()
+
+        return payload, requestLines
+
+    def parseHeaders(self, requestLines: list[bytes]):
+        headers = dict()
+
+        for header in requestLines:
+            currentHeader = str(header, "utf-8").split(':')
+            headers[currentHeader[0]] = currentHeader[1]
+
+        return headers
+
+    def printHeaders(self):
+        print("--start headers--")
+        for key, value in self.headers.items():
+            print(key + ": " + value)
+        print("--end headers--")
+        #return self
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
@@ -128,6 +186,5 @@ if __name__ == "__main__":
         print("Shutting down...")
         server.server_close()
         server.shutdown()
-
         
 
