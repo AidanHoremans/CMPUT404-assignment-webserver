@@ -62,7 +62,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
         request.printHeaders()
 
-        if request.method == bytearray("GET", 'utf-8'):
+        if request.method == bytes("GET", 'utf-8'):
             print("GET request:")
             response = HTTPResponse(path=request.path.decode('utf-8'))
             construct = response.constructResponse()
@@ -71,8 +71,10 @@ class MyWebServer(socketserver.BaseRequestHandler):
             return
 
         print("invalid request")
-        self.request.sendall(HTTPResponse(HTTPStatus.METHODNOTALLOWED).constructResponse())
-        #self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed", 'utf-8'))
+        response = HTTPResponse(status = HTTPStatus.METHODNOTALLOWED)
+        response.addCustomHeader("Allow", "GET")
+        construct = response.constructResponse()
+        self.request.sendall(bytes(construct, 'utf-8'))
         return
 
 class HTTPStatus(Enum):
@@ -80,50 +82,72 @@ class HTTPStatus(Enum):
     MOVEDPERMANENTLY = 301, "Moved Permanently"
     BADREQUEST = 400, "Bad Request"
     NOTFOUND = 404, "Not Found"
-    METHODNOTALLOWED = 405, "Method Not Allowed"
+    METHODNOTALLOWED = 405, "method not allowed"
     INTERNALSERVERERROR = 500, "Internal Server Error" #likely never used
 
     def statusToBytes(self):
         return str(self.value[0]) + " " + self.value[1]
 
 class HTTPResponse():
-    def __init__(self, path, status: HTTPStatus = HTTPStatus.OK):
+    def __init__(self, path: str = "", status: HTTPStatus = HTTPStatus.OK):
         self.httpVersion = "HTTP/1.1"
         self.status = status
         self.headers = dict()
         self.payload = ""
+
         if path != "":
-            self.findPath(path)
+            path = self.findPath(path)
+            self.setMimeTypes(path)
 
     #if path exists, and we don't have the correct path ending, redirect to that path /this -> /this/
     def findPath(self, path: str):
         wwwPath = "www" + path
+
         if os.path.isdir(wwwPath):
             if wwwPath[-1] != "/": #redirect
                 self.status = HTTPStatus.MOVEDPERMANENTLY
-                print(path)
                 self.headers["Location"] = "http://" + str(HOST) + ":" + str(PORT) + str(path) + "/"
+
             else: #otherwise just fetch index.html
                 self.status = HTTPStatus.OK
-                self.payload = open(wwwPath + "index.html", 'r').read()
-        else: #check if the file itself exists, otherwise fail
-            if os.path.isfile(wwwPath):
-                self.status = HTTPStatus.OK
+                wwwPath = wwwPath + "index.html"
                 self.payload = open(wwwPath, 'r').read()
-            else:
-                self.status = HTTPStatus.NOTFOUND
+
+        elif os.path.isfile(wwwPath): #check if the file itself exists, otherwise fail
+            self.status = HTTPStatus.OK
+            self.payload = open(wwwPath, 'r').read()
+
+        else:
+            self.status = HTTPStatus.NOTFOUND
+            wwwPath = ""
+
+        return wwwPath
+
+    #for html and css file extensions, pass back the correct content type
+    def setMimeTypes(self, path):
+        if path != "":
+            extension = os.path.splitext(path)[1]
+            if extension == ".html": #add mime-types for html and css
+                self.headers["Content-Type"] = "text/html"
+            elif extension == ".css":
+                self.headers["Content-Type"] = "text/css"
+        return
+
+    #allows for adding a header
+    def addCustomHeader(self, key, value):
+        self.headers[key] = value
         return
 
     def constructResponse(self):
         response = ""
         response = response + self.httpVersion + " " + self.status.statusToBytes()
         for key, item in self.headers.items():
-            print("KEY" + key)
-            print(item)
             response = response + "\r\n" + str(key) + ": " + str(item)
 
         if self.payload != "":
-            response = response + "\r\n\r\n" + self.payload
+            response = response + "\r\n" + self.payload
+
+        response = response + "\r\n\r\n"
 
         return response
 
@@ -172,7 +196,7 @@ class HTTPRequest():
         #return self
 
 if __name__ == "__main__":
-    HOST, PORT = "localhost", 8080
+    HOST, PORT = "127.0.0.1", 8080
 
     socketserver.TCPServer.allow_reuse_address = True
     # Create the server, binding to localhost on port 8080
