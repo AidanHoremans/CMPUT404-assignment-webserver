@@ -28,28 +28,49 @@ class HTTPResponse():
             self.set_mime_types(path)
 
     #if path exists, and we don't have the correct path ending, redirect to that path /this -> /this/
-    def open_path(self, path: str):
-        wwwPath = "www" + path
+    def open_path(self, rootPath: str):
+        path = "www" + rootPath
 
-        if os.path.isdir(wwwPath):
-            if wwwPath[-1] != "/": #redirect
+        if not self.is_safe_path(rootPath):
+            self.status = HTTPStatus.NOTFOUND
+            path = ""
+            return path
+
+        if os.path.isdir(path):
+            if path[-1] != "/": #redirect
                 self.status = HTTPStatus.MOVEDPERMANENTLY
-                self.headers["Location"] = "http://" + str(server.HOST) + ":" + str(server.PORT) + str(path) + "/"
+                self.headers["Location"] = "http://" + str(server.HOST) + ":" + str(server.PORT) + str(rootPath) + "/"
 
             else: #otherwise just fetch index.html
                 self.status = HTTPStatus.OK
-                wwwPath = wwwPath + "index.html"
-                self.payload = open(wwwPath, 'r').read()
+                path = path + "index.html"
+                self.payload = open(path, 'r').read()
 
-        elif os.path.isfile(wwwPath): #check if the file itself exists, otherwise fail
+        elif os.path.isfile(path): #check if the file itself exists, otherwise fail
             self.status = HTTPStatus.OK
-            self.payload = open(wwwPath, 'r').read()
+            self.payload = open(path, 'r').read()
 
         else:
             self.status = HTTPStatus.NOTFOUND
-            wwwPath = ""
+            path = ""
 
-        return wwwPath
+        return path
+
+    def is_safe_path(self, path: str):
+        depth = 0
+        levels = path.split('/')
+
+        for level in levels:
+            if level:
+                if level == "..":
+                    depth -= 1
+                else:
+                    depth += 1
+
+        if depth < 0:
+            return False
+        
+        return True
 
     #for html and css file extensions, pass back the correct content type
     def set_mime_types(self, path):
