@@ -30,7 +30,7 @@ class HTTPRequest():
         self.payload = self.parse_payload(requestLines)
         self.headers = self.parse_headers(requestLines) #by this point, we have removed the payload and the first part of the request, leaving only headers
 
-    def parse_payload(self, requestLines: list[bytes]):
+    def parse_payload(self, requestLines):
         payload = bytes("", 'utf-8')
 
         if len(requestLines) >= 2 and requestLines[-2] == bytes("", 'utf-8'):
@@ -40,7 +40,7 @@ class HTTPRequest():
 
         return payload, requestLines
 
-    def parse_headers(self, requestLines: list[bytes]):
+    def parse_headers(self, requestLines):
         headers = dict()
 
         for header in requestLines:
