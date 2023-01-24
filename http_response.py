@@ -27,9 +27,10 @@ class HTTPResponse():
         if request != None:
             requestPath = request.path.decode('utf-8')
             requestQuery = request.query.decode('utf-8')
-            
+
             filePath = self.open_path(requestPath, requestQuery)
             self.set_mime_types(filePath)
+        return
 
     #if path exists, and we don't have the correct path ending, redirect to that path /this -> /this/
     def open_path(self, rootPath: str, requestQuery: str):
@@ -86,16 +87,15 @@ class HTTPResponse():
 
     #for html and css file extensions, pass back the correct content type
     def set_mime_types(self, path):
-        value = None
+        value = "text/plain" #tried to use application/octet-stream as default, but firefox automatically downloads files of that mime-type
         if path != "":
             extension = os.path.splitext(path)[1]
             if extension == ".html": #add mime-types for html and css
                 value = "text/html"
             elif extension == ".css":
                 value = "text/css"
-            else:
-                value = "text/plain" #tried to use application/octet-stream, but firefox automatically downloads files of that mime-type
-        self.add_custom_header("Content-Type", value)
+            self.add_custom_header("Content-Type", value)
+        return
 
     def construct_response(self):
         self.add_custom_header("Content-Length", len(self.payload)) #Figure out the length of the payload
