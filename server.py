@@ -56,6 +56,8 @@ class MyWebServer(socketserver.BaseRequestHandler):
         print("Request method: " + str(httpRequest.method))
         print("Request path: " + str(httpRequest.path))
         print("Request version: " + str(httpRequest.httpVersion))
+        print("Query: " + str(httpRequest.query))
+        print("Path: " + str(httpRequest.path))
 
         response = HTTPResponse(httpRequest)
         constructedResponse = response.construct_response()

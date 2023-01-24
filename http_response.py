@@ -59,10 +59,6 @@ class HTTPResponse():
         if os.path.isdir(path): #check if the given path is a directory
             if path[-1] != "/": #check if path ends with /, if not, we need to redirect
 
-                if not os.path.isfile(path + "/index.html"): #maybe not? should ask
-                    self.status = HTTPStatus.NOTFOUND
-                    return path
-
                 self.status = HTTPStatus.MOVEDPERMANENTLY
 
                 #redirect with query
@@ -73,15 +69,12 @@ class HTTPResponse():
 
                 self.add_custom_header("Location", redirectUrl)
 
-            else: #otherwise if path DOES end with /, just serve index.html
-                path = path + "index.html"
-                if os.path.isfile(path):
-                    self.status = HTTPStatus.OK
-                    self.payload = open(path, 'r').read()
-                else:
-                    self.status = HTTPStatus.NOTFOUND
+                return #we are done with the path for the redirect
 
-        elif os.path.isfile(path): #check if the file itself exists
+            else: #otherwise if path DOES end with /, just serve index.html -> i.e. fall into the if os.path.isfile(path) assuming index.html exists
+                path = path + "index.html"
+
+        if os.path.isfile(path): #check if the file itself exist
             self.status = HTTPStatus.OK
             self.payload = open(path, 'r').read()
 
