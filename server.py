@@ -57,18 +57,10 @@ class MyWebServer(socketserver.BaseRequestHandler):
         print("Request path: " + str(httpRequest.path))
         print("Request version: " + str(httpRequest.httpVersion))
 
-        if httpRequest.method == bytes("GET", 'utf-8'):
-            print("GET request:")
-            response = HTTPResponse(httpRequest)
-            constructedResponse = response.construct_response()
-            print(constructedResponse)
-            self.request.sendall(constructedResponse)
-            return
-
-        print("invalid request")
-        response = HTTPResponse(status = HTTPStatus.METHODNOTALLOWED)
-        response.add_custom_header("Allow", "GET")
-        self.request.sendall(response.construct_response())
+        response = HTTPResponse(httpRequest)
+        constructedResponse = response.construct_response()
+        print(constructedResponse)
+        self.request.sendall(constructedResponse)
         return
 
 if __name__ == "__main__":

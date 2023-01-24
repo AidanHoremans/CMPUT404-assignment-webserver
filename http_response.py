@@ -24,26 +24,45 @@ class HTTPResponse():
         self.headers = dict()
         self.payload = ""
 
-        if request != None:
+        if request == None: #for basic responses that don't need anything above a status, return here
+            return
+
+        if request.method == bytes("GET", 'utf-8'):
             requestPath = request.path.decode('utf-8')
             requestQuery = request.query.decode('utf-8')
 
             filePath = self.open_path(requestPath, requestQuery)
-            self.set_mime_types(filePath)
+            if self.is_status_successful(): #need to make sure the status is successful for opening the desired path before we give away mime-type information
+                self.set_mime_types(filePath)
+
+        else: #unsupported method
+            self.status = HTTPStatus.METHODNOTALLOWED
+            self.add_custom_header("Allow", "GET")
         return
+
+    def is_status_successful(self):
+        return self.status.value[0] >= 200 and self.status.value[0] <= 299
+
+    def add_custom_header(self, key, value):
+        self.headers[key] = value
 
     #if path exists, and we don't have the correct path ending, redirect to that path /this -> /this/
     def open_path(self, rootPath: str, requestQuery: str):
 
-        path = "www" + rootPath
+        path = server.FILEDIRECTORY + rootPath
 
         if not self.is_safe_path(rootPath):
             self.status = HTTPStatus.NOTFOUND
-            path = ""
+            path = "" #just in case, reset the path, dont want unsafe paths floating around
             return path
 
         if os.path.isdir(path): #check if the given path is a directory
             if path[-1] != "/": #check if path ends with /, if not, we need to redirect
+
+                if not os.path.isfile(path + "/index.html"): #maybe not? should ask
+                    self.status = HTTPStatus.NOTFOUND
+                    return path
+
                 self.status = HTTPStatus.MOVEDPERMANENTLY
 
                 #redirect with query
@@ -55,17 +74,19 @@ class HTTPResponse():
                 self.add_custom_header("Location", redirectUrl)
 
             else: #otherwise if path DOES end with /, just serve index.html
-                self.status = HTTPStatus.OK
                 path = path + "index.html"
-                self.payload = open(path, 'r').read()
+                if os.path.isfile(path):
+                    self.status = HTTPStatus.OK
+                    self.payload = open(path, 'r').read()
+                else:
+                    self.status = HTTPStatus.NOTFOUND
 
-        elif os.path.isfile(path): #check if the file itself exists,
+        elif os.path.isfile(path): #check if the file itself exists
             self.status = HTTPStatus.OK
             self.payload = open(path, 'r').read()
 
         else: #selected path is neither a file nor a directory, dne
             self.status = HTTPStatus.NOTFOUND
-            path = ""
 
         return path
 
@@ -80,10 +101,7 @@ class HTTPResponse():
                 else:
                     depth += 1
 
-        if depth < 0:
-            return False
-        
-        return True
+        return depth >= 0
 
     #for html and css file extensions, pass back the correct content type
     def set_mime_types(self, path):
@@ -94,7 +112,7 @@ class HTTPResponse():
                 value = "text/html"
             elif extension == ".css":
                 value = "text/css"
-            self.add_custom_header("Content-Type", value)
+            self.add_custom_header("Content-Type", value) #only add the header if path is not empty
         return
 
     def construct_response(self):
@@ -110,7 +128,3 @@ class HTTPResponse():
         response += "\r\n\r\n" + self.payload #add even if empty, just make sure we have the correct payload length
         
         return bytes(response, 'utf-8')
-
-    #allows for adding a header
-    def add_custom_header(self, key, value):
-        self.headers[key] = value
