@@ -1,4 +1,5 @@
 from http_status import HTTPStatus
+from http_request import HTTPRequest
 import os
 import server_constants as server
 
@@ -17,18 +18,22 @@ import server_constants as server
 # limitations under the License.
 
 class HTTPResponse():
-    def __init__(self, path: str = "", status: HTTPStatus = HTTPStatus.OK):
+    def __init__(self, request:HTTPRequest=None, status: HTTPStatus = HTTPStatus.OK):
         self.httpVersion = "HTTP/1.1"
         self.status = status
         self.headers = dict()
         self.payload = ""
 
-        if path != "":
-            path = self.open_path(path)
-            self.set_mime_types(path)
+        if request != None:
+            requestPath = request.path.decode('utf-8')
+            requestQuery = request.query.decode('utf-8')
+            
+            filePath = self.open_path(requestPath, requestQuery)
+            self.set_mime_types(filePath)
 
     #if path exists, and we don't have the correct path ending, redirect to that path /this -> /this/
-    def open_path(self, rootPath: str):
+    def open_path(self, rootPath: str, requestQuery: str):
+
         path = "www" + rootPath
 
         if not self.is_safe_path(rootPath):
@@ -36,21 +41,28 @@ class HTTPResponse():
             path = ""
             return path
 
-        if os.path.isdir(path):
-            if path[-1] != "/": #redirect
+        if os.path.isdir(path): #check if the given path is a directory
+            if path[-1] != "/": #check if path ends with /, if not, we need to redirect
                 self.status = HTTPStatus.MOVEDPERMANENTLY
-                self.headers["Location"] = "http://" + str(server.HOST) + ":" + str(server.PORT) + str(rootPath) + "/"
 
-            else: #otherwise just fetch index.html
+                #redirect with query
+                if requestQuery != "":
+                    requestQuery = "?" + requestQuery
+                
+                redirectUrl = "http://" + str(server.HOST) + ":" + str(server.PORT) + str(rootPath) + "/" + str(requestQuery)
+
+                self.add_custom_header("Location", redirectUrl)
+
+            else: #otherwise if path DOES end with /, just serve index.html
                 self.status = HTTPStatus.OK
                 path = path + "index.html"
                 self.payload = open(path, 'r').read()
 
-        elif os.path.isfile(path): #check if the file itself exists, otherwise fail
+        elif os.path.isfile(path): #check if the file itself exists,
             self.status = HTTPStatus.OK
             self.payload = open(path, 'r').read()
 
-        else:
+        else: #selected path is neither a file nor a directory, dne
             self.status = HTTPStatus.NOTFOUND
             path = ""
 
@@ -74,18 +86,16 @@ class HTTPResponse():
 
     #for html and css file extensions, pass back the correct content type
     def set_mime_types(self, path):
+        value = None
         if path != "":
             extension = os.path.splitext(path)[1]
             if extension == ".html": #add mime-types for html and css
-                self.headers["Content-Type"] = "text/html"
+                value = "text/html"
             elif extension == ".css":
-                self.headers["Content-Type"] = "text/css"
-        return
-
-    #allows for adding a header
-    def add_custom_header(self, key, value):
-        self.headers[key] = value
-        return
+                value = "text/css"
+            else:
+                value = "text/plain" #tried to use application/octet-stream, but firefox automatically downloads files of that mime-type
+        self.add_custom_header("Content-Type", value)
 
     def construct_response(self):
         self.add_custom_header("Content-Length", len(self.payload)) #Figure out the length of the payload
@@ -100,3 +110,7 @@ class HTTPResponse():
         response += "\r\n\r\n" + self.payload #add even if empty, just make sure we have the correct payload length
         
         return bytes(response, 'utf-8')
+
+    #allows for adding a header
+    def add_custom_header(self, key, value):
+        self.headers[key] = value

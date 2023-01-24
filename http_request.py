@@ -1,3 +1,5 @@
+from urllib import parse
+
 # Copyright 2023 Aidan Horemans
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,13 +24,29 @@ class HTTPRequest():
         requestType = requestLines[0].split()
 
         self.method = requestType[0] #GET, POST, etc...
-        self.path = requestType[1] #File path
-        self.httpVersion = requestType[2] #Version of the http call
+
+        result = parse.urlsplit(requestType[1]) #parse the path in the request
+        self.path = result.path
+        self.query = result.query
+
+        self.httpVersion = requestType[2] #Version of the http call, we don't downgrade to this type, but good to parse
 
         requestLines.pop(0) #since we already parsed the first
 
         self.payload = self.parse_payload(requestLines)
         self.headers = self.parse_headers(requestLines) #by this point, we have removed the payload and the first part of the request, leaving only headers
+
+    def parse_path(self, requestPath):
+        if requestPath.find(bytes("?", 'utf-8')) != -1:
+            pathAndQuery = requestPath.split(bytes("?", 'utf-8'))
+            path = pathAndQuery[0] #requestType[1] #File path
+            queryParams = bytes("", 'utf-8').join(pathAndQuery[1:])
+            print(queryParams)
+        else:
+            path = requestPath
+            queryParams = bytes("", 'utf-8')
+
+        return path, queryParams
 
     def parse_payload(self, requestLines):
         payload = bytes("", 'utf-8')

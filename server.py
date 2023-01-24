@@ -35,9 +35,10 @@ class MyWebServer(socketserver.BaseRequestHandler):
     def handle(self):
         try:
             self.handle_request()
-        except:
+        except Exception as e:
             httpResponse = HTTPResponse(status = HTTPStatus.INTERNALSERVERERROR)
             print("The server threw an exception (whoops), responding with 500...")
+            print(e)
             self.request.sendall(httpResponse.construct_response())
 
     def handle_request(self):
@@ -58,7 +59,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
         if httpRequest.method == bytes("GET", 'utf-8'):
             print("GET request:")
-            response = HTTPResponse(path = httpRequest.path.decode('utf-8'))
+            response = HTTPResponse(httpRequest)
             constructedResponse = response.construct_response()
             print(constructedResponse)
             self.request.sendall(constructedResponse)
