@@ -1,8 +1,7 @@
 from http_status import HTTPStatus
-from http_request import HTTPRequest
 import os
 import server_constants as server
-from email.utils import formatdate
+from email.utils import formatdate #allows us to get RFC 2822 formatted date
 
 # Copyright 2023 Aidan Horemans
 #
@@ -52,17 +51,12 @@ class HTTPResponse():
     #if path exists, and we don't have the correct path ending, redirect to that path /this -> /this/
     def open_path(self, rootPath: str, requestQuery: str):
 
-        path = server.FILEDIRECTORY + rootPath
-
-        if not self.is_in_www(rootPath):
+        if not self.is_in_www(rootPath): #compare the given path against 
             self.status = HTTPStatus.NOTFOUND
             path = ""
             return path
 
-        # if not self.is_safe_path(rootPath):
-        #     self.status = HTTPStatus.NOTFOUND
-        #     path = ""
-        #     return path
+        path = server.FILEDIRECTORY + rootPath
 
         if os.path.isdir(path): #check if the given path is a directory
             if path[-1] != "/": #check if path ends with /, if not, we need to redirect
@@ -95,27 +89,12 @@ class HTTPResponse():
         return path
 
     def is_in_www(self, path: str):
-        base = os.getcwd()
-        requested = os.path.abspath(os.getcwd() + "/www" + path) #abs path calculates the actual path
+        base = os.getcwd() + "/www"
+        requested = os.path.abspath(base + path) #abs path calculates the actual path -> /path/../ becomes /
 
         commonPath = os.path.commonprefix([base, requested])
 
-        print("ACCEPT: " + str(base == commonPath))
-
         return base == commonPath #if requested path is in /www, the common prefix on both paths will be the same
-
-    def is_safe_path(self, path: str):
-        depth = 0
-        levels = path.split('/')
-
-        for level in levels:
-            if level:
-                if level == "..":
-                    depth -= 1
-                else:
-                    depth += 1
-
-        return depth >= 0
 
     #for html and css file extensions, pass back the correct content type
     def set_mime_types(self, path):
