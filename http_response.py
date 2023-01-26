@@ -54,10 +54,15 @@ class HTTPResponse():
 
         path = server.FILEDIRECTORY + rootPath
 
-        if not self.is_safe_path(rootPath):
+        if not self.is_in_www(rootPath):
             self.status = HTTPStatus.NOTFOUND
             path = ""
             return path
+
+        # if not self.is_safe_path(rootPath):
+        #     self.status = HTTPStatus.NOTFOUND
+        #     path = ""
+        #     return path
 
         if os.path.isdir(path): #check if the given path is a directory
             if path[-1] != "/": #check if path ends with /, if not, we need to redirect
@@ -79,12 +84,25 @@ class HTTPResponse():
 
         if os.path.isfile(path): #check if the file itself exist
             self.status = HTTPStatus.OK
-            self.payload = open(path, 'r').read()
+            try:
+                self.payload = open(path, 'r').read()
+            except:
+                self.status = HTTPStatus.NOTFOUND
 
         else: #selected path is neither a file nor a directory, dne
             self.status = HTTPStatus.NOTFOUND
 
         return path
+
+    def is_in_www(self, path: str):
+        base = os.getcwd()
+        requested = os.path.abspath(os.getcwd() + "/www" + path) #abs path calculates the actual path
+
+        commonPath = os.path.commonprefix([base, requested])
+
+        print("ACCEPT: " + str(base == commonPath))
+
+        return base == commonPath #if requested path is in /www, the common prefix on both paths will be the same
 
     def is_safe_path(self, path: str):
         depth = 0

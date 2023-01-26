@@ -4,6 +4,7 @@ from http_response import HTTPResponse
 from http_status import HTTPStatus
 from http_request import HTTPRequest
 import server_constants as server
+import os
 
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos, Aidan Horemans
 # 
@@ -50,6 +51,17 @@ class MyWebServer(socketserver.BaseRequestHandler):
         httpRequest = HTTPRequest(self.data)
 
         print(f"Received request of {httpRequest.print_request()}")
+
+        #httpRequest.path = bytes("/../../../../", 'utf-8')
+
+        base = os.getcwd()
+        requested = os.path.abspath(os.getcwd() + "/www" + httpRequest.path.decode('utf-8')) #abs path calculates the actual path
+
+
+        print(base)
+        print(requested)
+
+        print(os.path.commonprefix([base, requested]))
 
         response = HTTPResponse(httpRequest)
 
