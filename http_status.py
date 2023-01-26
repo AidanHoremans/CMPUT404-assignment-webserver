@@ -25,5 +25,5 @@ class HTTPStatus(Enum):
     METHODNOTALLOWED = 405, "method not allowed"
     INTERNALSERVERERROR = 500, "Internal Server Error"
 
-    def status_to_bytes(self):
+    def status_to_string(self):
         return str(self.value[0]) + " " + self.value[1]

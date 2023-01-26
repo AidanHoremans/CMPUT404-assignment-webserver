@@ -66,3 +66,10 @@ class HTTPRequest():
             headers[currentHeader[0]] = currentHeader[1]
 
         return headers
+    
+    def print_request(self):
+        query = self.query.decode('utf-8')
+        if query:
+            query = "?" + query
+        
+        return self.method.decode('utf-8') +" "+ self.path.decode('utf-8') + query + " " + self.httpVersion.decode('utf-8')

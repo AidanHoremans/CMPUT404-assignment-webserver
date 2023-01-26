@@ -2,6 +2,7 @@ from http_status import HTTPStatus
 from http_request import HTTPRequest
 import os
 import server_constants as server
+from email.utils import formatdate
 
 # Copyright 2023 Aidan Horemans
 #
@@ -18,11 +19,13 @@ import server_constants as server
 # limitations under the License.
 
 class HTTPResponse():
-    def __init__(self, request:HTTPRequest=None, status: HTTPStatus = HTTPStatus.OK):
+    def __init__(self, request = None, status: HTTPStatus = HTTPStatus.OK):
         self.httpVersion = "HTTP/1.1"
         self.status = status
         self.headers = dict()
         self.payload = ""
+
+        self.add_custom_header("Date", formatdate(usegmt=True))
 
         if request == None: #for basic responses that don't need anything above a status, return here
             return
@@ -53,7 +56,7 @@ class HTTPResponse():
 
         if not self.is_safe_path(rootPath):
             self.status = HTTPStatus.NOTFOUND
-            path = "" #just in case, reset the path, dont want unsafe paths floating around
+            path = ""
             return path
 
         if os.path.isdir(path): #check if the given path is a directory
@@ -98,7 +101,7 @@ class HTTPResponse():
 
     #for html and css file extensions, pass back the correct content type
     def set_mime_types(self, path):
-        value = "text/plain" #tried to use application/octet-stream as default, but firefox automatically downloads files of that mime-type
+        value = "application/octect-stream" #default mime-type for unsupported file types
         if path != "":
             extension = os.path.splitext(path)[1]
             if extension == ".html": #add mime-types for html and css
@@ -113,7 +116,7 @@ class HTTPResponse():
 
         response = "" #begin creating response
 
-        response += self.httpVersion + " " + self.status.status_to_bytes()
+        response += self.httpVersion + " " + self.status.status_to_string()
 
         for key, item in self.headers.items():
             response += "\r\n" + str(key) + ": " + str(item)

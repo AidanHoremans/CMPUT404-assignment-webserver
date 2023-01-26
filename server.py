@@ -5,7 +5,7 @@ from http_status import HTTPStatus
 from http_request import HTTPRequest
 import server_constants as server
 
-# Copyright 2013 Abram Hindle, Eddie Antonio Santos, ME?
+# Copyright 2013 Abram Hindle, Eddie Antonio Santos, Aidan Horemans
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
         except Exception as e:
             httpResponse = HTTPResponse(status = HTTPStatus.INTERNALSERVERERROR)
             print("The server threw an exception (whoops), responding with 500...")
-            print(e)
+            print(f"Exception of: {e}")
             self.request.sendall(httpResponse.construct_response())
 
     def handle_request(self):
@@ -47,21 +47,15 @@ class MyWebServer(socketserver.BaseRequestHandler):
         if self.data == bytearray("", 'utf-8'):
             return #ignore empty requests
 
-        print("\nGot a request of: %s\n" % self.data)
-        print("Client connected to: " + str(self.request))
-
         httpRequest = HTTPRequest(self.data)
 
-        #garbage to remove, just for testing
-        print("Request method: " + str(httpRequest.method))
-        print("Request path: " + str(httpRequest.path))
-        print("Request version: " + str(httpRequest.httpVersion))
-        print("Query: " + str(httpRequest.query))
-        print("Path: " + str(httpRequest.path))
+        print(f"Received request of {httpRequest.print_request()}")
 
         response = HTTPResponse(httpRequest)
+
+        print(f"Responding with {response.status.status_to_string()}\n")
+
         constructedResponse = response.construct_response()
-        print(constructedResponse)
         self.request.sendall(constructedResponse)
         return
 
