@@ -94,7 +94,7 @@ class HTTPResponse():
         return path
 
     def is_in_www(self, path: str): #prevents leaving /www
-        base = "/www"
+        base = os.path.abspath("/www")
         requested = os.path.abspath(base + path)
 
         commonPath = os.path.commonprefix([base, requested])
