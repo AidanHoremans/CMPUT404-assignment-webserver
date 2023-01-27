@@ -5,7 +5,7 @@ from http_status import HTTPStatus
 from http_request import HTTPRequest
 import server_constants as server
 
-# Copyright 2013 Abram Hindle, Eddie Antonio Santos, Aidan Horemans
+# Copyright 2023 Abram Hindle, Eddie Antonio Santos, Aidan Horemans
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

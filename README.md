@@ -25,3 +25,8 @@ examples thus some of the code is Copyright © 2001-2013 Python
 Software Foundation; All Rights Reserved under the PSF license (GPL
 compatible) http://docs.python.org/2/library/socketserver.html
 
+
+References
+==========
+
+Ber, https://stackoverflow.com/users/11527/ber, "RFC 1123 Date Representation in Python?", https://stackoverflow.com/a/225177, StackOverflow
