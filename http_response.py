@@ -94,12 +94,22 @@ class HTTPResponse():
         return path
 
     def is_in_www(self, path: str): #prevents leaving /www
-        base = os.getcwd() + "/www"
-        requested = os.path.abspath(base + path) #abs path calculates the actual path -> /path/../ becomes /
+        base = "/www"
+        requested = os.path.abspath(base + path)
 
         commonPath = os.path.commonprefix([base, requested])
 
-        return base == commonPath #if requested path is in /www, the common prefix on both paths will be the same
+        print(requested)
+        print(commonPath)
+
+        return commonPath == base #must be contained in www
+
+        # base = os.getcwd() + "/www"
+        # requested = os.path.abspath(base + path) #abs path calculates the actual path -> /path/../ becomes /
+
+        # commonPath = os.path.commonprefix([base, requested])
+
+        # return base == commonPath #if requested path is in /www, the common prefix on both paths will be the same
 
     def set_mime_types(self, path):
         value = "application/octect-stream" #default mime-type for unsupported file types
