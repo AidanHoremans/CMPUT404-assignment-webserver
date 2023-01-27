@@ -29,8 +29,6 @@ class HTTPRequest():
 
         req = request.split(bytes("\r\n\r\n", 'utf-8')) #split payload from headers and method
 
-        print(request)
-
         if len(req) == 2: #if the request has a payload, attach it
             self.payload = req[1]
 
