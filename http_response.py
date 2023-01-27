@@ -1,4 +1,5 @@
 from http_status import HTTPStatus
+from http_request import HTTPRequest
 import os
 import server_constants as server
 from email.utils import formatdate #allows us to get RFC 2822 formatted date
@@ -18,7 +19,7 @@ from email.utils import formatdate #allows us to get RFC 2822 formatted date
 # limitations under the License.
 
 class HTTPResponse():
-    def __init__(self, request = None, status: HTTPStatus = HTTPStatus.OK):
+    def __init__(self, request: HTTPRequest = None, status: HTTPStatus = HTTPStatus.OK):
         self.httpVersion = "HTTP/1.1"
         self.status = status
         self.headers = dict()
@@ -27,6 +28,10 @@ class HTTPResponse():
         self.add_custom_header("Date", formatdate(usegmt=True))
 
         if request == None: #for basic responses that don't need anything above a status, return here
+            return
+
+        if request.is_valid():
+            self.status = HTTPStatus.BADREQUEST
             return
 
         if request.method == bytes("GET", 'utf-8'):
@@ -88,7 +93,7 @@ class HTTPResponse():
 
         return path
 
-    def is_in_www(self, path: str):
+    def is_in_www(self, path: str): #prevents leaving /www
         base = os.getcwd() + "/www"
         requested = os.path.abspath(base + path) #abs path calculates the actual path -> /path/../ becomes /
 
@@ -96,7 +101,6 @@ class HTTPResponse():
 
         return base == commonPath #if requested path is in /www, the common prefix on both paths will be the same
 
-    #for html and css file extensions, pass back the correct content type
     def set_mime_types(self, path):
         value = "application/octect-stream" #default mime-type for unsupported file types
         if path != "":

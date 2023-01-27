@@ -20,52 +20,50 @@ from urllib import parse
 class HTTPRequest():
     def __init__(self, request: bytes):
         # parse request type out of what was sent from the client
-        requestLines = request.splitlines()
-        requestType = requestLines[0].split()
+        self.path = bytes("", 'utf-8')
+        self.query = bytes("", 'utf-8')
+        self.payload = bytes("", 'utf-8')
+        self.method = bytes("", 'utf-8')
+        self.httpVersion = bytes("", 'utf-8')
+        self.headers = dict()
 
-        self.method = requestType[0] #GET, POST, etc...
+        req = request.split(bytes("\r\n\r\n", 'utf-8')) #split payload from headers and method
 
-        result = parse.urlsplit(requestType[1]) #parse the path in the request
+        print(request)
+
+        if len(req) == 2: #if the request has a payload, attach it
+            self.payload = req[1]
+
+        headers = req[0].splitlines()
+        topHeader = headers[0].split() #get method, path and version
+
+        if len(topHeader) != 3: #should only have method, path and version
+            return
+
+        self.method = topHeader[0]
+
+        try:
+            result = parse.urlsplit(topHeader[1]) #parse the path in the request
+        except:
+            return
+
         self.path = result.path
         self.query = result.query
+        
+        self.httpVersion = topHeader[2]
 
-        self.httpVersion = requestType[2] #Version of the http call, we don't downgrade to this type, but good to parse
+        headers.pop(0) #since we already parsed the first inc method and path and such
 
-        requestLines.pop(0) #since we already parsed the first
+        self.headers = self.parse_headers(headers)
 
-        self.payload = self.parse_payload(requestLines)
-        self.headers = self.parse_headers(requestLines) #by this point, we have removed the payload and the first part of the request, leaving only headers
+    def parse_headers(self, headers):
+        headersDict = dict()
 
-    def parse_path(self, requestPath):
-        if requestPath.find(bytes("?", 'utf-8')) != -1:
-            pathAndQuery = requestPath.split(bytes("?", 'utf-8'))
-            path = pathAndQuery[0] #requestType[1] #File path
-            queryParams = bytes("", 'utf-8').join(pathAndQuery[1:])
-            print(queryParams)
-        else:
-            path = requestPath
-            queryParams = bytes("", 'utf-8')
+        for header in headers:
+            currentHeader = str(header, "utf-8").partition(": ")
+            headersDict[currentHeader[0]] = currentHeader[2]
 
-        return path, queryParams
-
-    def parse_payload(self, requestLines):
-        payload = bytes("", 'utf-8')
-
-        if len(requestLines) >= 2 and requestLines[-2] == bytes("", 'utf-8'):
-            payload = requestLines[-1]
-            requestLines.pop()
-            requestLines.pop()
-
-        return payload, requestLines
-
-    def parse_headers(self, requestLines):
-        headers = dict()
-
-        for header in requestLines:
-            currentHeader = str(header, "utf-8").split(':')
-            headers[currentHeader[0]] = currentHeader[1]
-
-        return headers
+        return headersDict
     
     def print_request(self):
         query = self.query.decode('utf-8')
@@ -73,3 +71,8 @@ class HTTPRequest():
             query = "?" + query
         
         return self.method.decode('utf-8') +" "+ self.path.decode('utf-8') + query + " " + self.httpVersion.decode('utf-8')
+
+    def is_valid(self):
+        if self.method and self.path and self.httpVersion:
+            return True
+        return False
