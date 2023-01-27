@@ -30,7 +30,7 @@ class HTTPResponse():
         if request == None: #for basic responses that don't need anything above a status, return here
             return
 
-        if request.is_valid():
+        if not request.is_valid():
             self.status = HTTPStatus.BADREQUEST
             return
 
